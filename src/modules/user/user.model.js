@@ -20,6 +20,11 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    roles: {
+      type: [String],
+      default: ["member"],
+      enum: ["member", "admin", "superAdmin"],
+    },
   },
   optionsSchema,
 );

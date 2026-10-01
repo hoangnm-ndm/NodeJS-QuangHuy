@@ -1,7 +1,9 @@
-import bcrypt from "bcryptjs";
-import { User } from "../user/user.model.js";
 import jwt from "jsonwebtoken";
 import { envConfig } from "../../config/env.config.js";
+import { comparePassword, hashPassword } from "../../shared/utils/password.js";
+import { User } from "../user/user.model.js";
+import { authService } from "./auth.service.js";
+import { signAccessToken, signRefreshToken } from "../../shared/utils/jwt.js";
 
 export const authController = {
   register: async (req, res) => {
@@ -16,14 +18,14 @@ export const authController = {
     if (userExist) {
       return res.status(400).json({ message: "Email already exists" });
     }
-    const salt = bcrypt.genSaltSync(10);
-    const hashedPassword = bcrypt.hashSync(password, salt);
-    const newUser = await User.create({
+
+    const hashedPassword = hashPassword(password);
+
+    const newUser = await authService.register({
       email,
       password: hashedPassword,
     });
 
-    newUser.password = undefined;
     res
       .status(201)
       .json({ message: "User created successfully", user: newUser });
@@ -37,28 +39,16 @@ export const authController = {
         .status(400)
         .json({ message: "Email or password is incorrect" });
     }
-    const isMatch = bcrypt.compareSync(password, userExist.password);
+
+    const isMatch = comparePassword(password, userExist.password);
     if (!isMatch) {
       return res
         .status(400)
         .json({ message: "Email or password is incorrect" });
     }
 
-    const accessToken = jwt.sign(
-      { userId: userExist._id },
-      envConfig.JWT_ACCESS_SECRET,
-      {
-        expiresIn: "1h",
-      },
-    );
-
-    const refreshToken = jwt.sign(
-      { userId: userExist._id },
-      envConfig.JWT_REFRESH_SECRET,
-      {
-        expiresIn: "17d",
-      },
-    );
+    const accessToken = signAccessToken(userExist._id);
+    const refreshToken = signRefreshToken(userExist._id);
 
     userExist.password = undefined;
 
